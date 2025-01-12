@@ -1,0 +1,72 @@
+name: Build and Release Anime-App
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [16]  # Du kannst deine Node-Version hier anpassen
+
+    steps:
+      # Repository klonen
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Node.js einrichten
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Abhängigkeiten installieren
+      - name: Install dependencies
+        run: npm install
+
+      # App bauen
+      - name: Build the app
+        run: npm run build
+
+      # Artefakte hochladen
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: anime-app-${{ matrix.os }}
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # Repository klonen
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Release erstellen
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
+
+      # Artefakte anhängen
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          release_id: ${{ steps.create-release.outputs.id }}
+          asset_path: dist/
+          asset_name: anime-app-${{ matrix.os }}.zip
+          asset_content_type: application/zip
